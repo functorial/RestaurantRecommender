@@ -10,6 +10,7 @@ def get_sequences(df:pd.DataFrame, target:str, group_by:list, sort_by:str=None, 
     sequences = sequences[sequences.apply(lambda x: len(x)) >= min_seq_len]    # Filter out locations with 0 orders
     return sequences
 
+
 def integer_encoding(df:pd.DataFrame, cols:list, drop_old=False, sort_unique:bool=False, ascending=True):
     """Returns updated DataFrame and inverse mapping dictionary."""
     for col in cols:
