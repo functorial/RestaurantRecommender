@@ -1,5 +1,6 @@
 import pandas as pd
 from numpy import log, sqrt
+from PreprocessingHelpers import integer_encoding, multiclass_list_encoding
 
 vendors = pd.read_csv('vendors.csv')
 train_orders = pd.read_csv('orders.csv')
@@ -18,7 +19,7 @@ vendors['vendor_tag'] = vendors['vendor_tag'].fillna(str(-1)).apply(lambda x: x.
 vendors.loc[28, 'vendor_category_id'] = 3.0
 
 # Get unique vendor tags
-vendor_tags = [int(i) for i in vendors['vendor_tag'].explode().unique()]
+vendor_tags = [int(tag) for tag in vendors['vendor_tag'].explode().unique()]
 vendor_tags.sort()
 
 # Map values to range(len(vendor_tags))
@@ -57,8 +58,11 @@ for i in vendors[v_outliers].index:
 keep_continuous = ['latitude', 'longitude', 'delivery_charge', 'serving_distance', 'prepration_time', 'vendor_rating', 'num_orders_log3', 'amt_sales_log3', 'avg_sale_log']
 keep_categorical = ['vendor_category_id', 'status', 'rank', 'primary_tags', 'vendor_tag']
 keep_columns = keep_continuous + keep_categorical
+vendors = vendors[keep_columns]
 
-
+# Encode categorical columns
+vendors, _ = integer_encoding(df=vendors, cols=['vendor_category_id', 'delivery_charge', 'status', 'rank', 'primary_tags'], drop_old=True, monotone_mapping=True)
+vendors = multiclass_list_encoding(df=vendors, cols=['primary_tags', 'vendor_tag'], drop_old=True)
 
 
 
