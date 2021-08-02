@@ -14,6 +14,7 @@ def get_sequences(df:pd.DataFrame, target:str, group_by:list, sort_by:str=None, 
 def integer_encoding(df:pd.DataFrame, cols:list, drop_old=False, monotone_mapping:bool=False, ascending=True):
     """Returns updated DataFrame and inverse mapping dictionary."""
     clone = df.copy()
+    id_maps = dict()
     inv_maps = dict()
     for col in cols:
         unique_values = clone[col].unique()
@@ -25,18 +26,28 @@ def integer_encoding(df:pd.DataFrame, cols:list, drop_old=False, monotone_mappin
         for i in range(num_unique):
             id_map[unique_values[i]] = i
             inv_map[i] = unique_values[i]
+        id_maps[col] = id_map
         inv_maps[col] = inv_map
         if drop_old:
             clone[col] = clone[col].map(id_map)
         else:
             col_reidx = col + "_reidx"
             clone[col_reidx] = clone[col].map(id_map)
-    return clone, inv_maps
+    return clone, id_maps, inv_maps
 
 def multiclass_list_encoding(df:pd.DataFrame, cols:list, drop_old=False):
     clone = df.copy()
-    for col in cols:
 
+    # For index conjugation to make querying easy
+    index_map = dict()
+    inv_map = dict()
+    for i, idx in enumerate(clone.index):
+        index_map[idx] = i
+        inv_map[i] = idx
+        
+    clone.index = clone.index.map(index_map)
+
+    for col in cols:
         # If list-valued
         if type(clone.loc[0, col]) == list:
             categories = clone[col].explode().unique().tolist()
@@ -72,6 +83,8 @@ def multiclass_list_encoding(df:pd.DataFrame, cols:list, drop_old=False):
 
     if drop_old:
         clone.drop(labels=cols, axis=1, inplace=True)
+
+    clone.index = clone.index.map(inv_map)
     return clone
 
         

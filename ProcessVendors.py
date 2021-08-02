@@ -3,11 +3,28 @@ from numpy import log, sqrt
 from PreprocessingHelpers import integer_encoding, multiclass_list_encoding
 
 vendors = pd.read_csv('vendors.csv')
-train_orders = pd.read_csv('orders.csv')
+orders = pd.read_csv('orders.csv')
+train_customers = pd.read_csv('train_customers.csv')
+train_locations = pd.read_csv('train_locations.csv')
+test_customers = pd.read_csv('test_customers.csv')
+test_locations = pd.read_csv('test_locations.csv')
+
+#####################################
+##         Process Orders          ##
+#####################################
+
+train_orders = orders[orders['customer_id'].isin(train_customers['akeed_customer_id'])]
+test_orders = orders[orders['customer_id'].isin(test_customers['akeed_customer_id'])]
+
+
 
 #####################################
 ##         Process Vendors         ##
 #####################################
+
+# Set id column to index
+vendors.sort_values(by='id')
+vendors.set_index('id', inplace=True)
 
 # Fill primary_tags na with -1 & strip unnecessary characters
 vendors['primary_tags'] = vendors['primary_tags'].fillna("{\"primary_tags\":\"-1\"}").apply(lambda x: int(str(x).split("\"")[3]))
@@ -63,6 +80,20 @@ vendors = vendors[keep_columns]
 # Encode categorical columns
 vendors, _ = integer_encoding(df=vendors, cols=['vendor_category_id', 'delivery_charge', 'status', 'rank', 'primary_tags'], drop_old=True, monotone_mapping=True)
 vendors = multiclass_list_encoding(df=vendors, cols=['primary_tags', 'vendor_tag'], drop_old=True)
+
+
+
+#####################################
+##         Process Customers       ##
+#####################################
+
+
+
+
+
+
+
+
 
 
 
