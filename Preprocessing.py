@@ -1,6 +1,7 @@
 import pandas as pd
+import torch
 from numpy import log, sqrt
-from PreprocessingHelpers import integer_encoding, multiclass_list_encoding
+from PreprocessingHelpers import integer_encoding, multiclass_list_encoding, get_sequences, pool_encodings_from_sequences
 
 vendors = pd.read_csv('vendors.csv')
 orders = pd.read_csv('orders.csv')
@@ -9,22 +10,37 @@ train_locations = pd.read_csv('train_locations.csv')
 test_customers = pd.read_csv('test_customers.csv')
 test_locations = pd.read_csv('test_locations.csv')
 
+
 #####################################
 ##         Process Orders          ##
 #####################################
 
+# Train / Test split
 train_orders = orders[orders['customer_id'].isin(train_customers['akeed_customer_id'])]
 test_orders = orders[orders['customer_id'].isin(test_customers['akeed_customer_id'])]
 
+# Remove duplicate customers and their orders
+x = train_customers.groupby('akeed_customer_id').size()
+duplicate_train_customers = train_customers[train_customers['akeed_customer_id'].isin(x[x>1].index)]['akeed_customer_id'].unique()
+train_customers = train_customers[~train_customers['akeed_customer_id'].isin(duplicate_train_customers)]
+train_orders = train_orders[~train_orders['customer_id'].isin(duplicate_train_customers)]
+
+# Sort orders by datetime
+train_orders['created_at'] = pd.to_datetime(train_orders['created_at'])
+train_orders.sort_values(by=['created_at'], inplace=True)
+
+# Map vendor ids to range(0,num_vendors)
+train_orders, v_id_map, v_inv_map = integer_encoding(df=train_orders, cols=['vendor_id'], drop_old=True, monotone_mapping=True)
 
 
 #####################################
 ##         Process Vendors         ##
 #####################################
 
-# Set id column to index
-vendors.sort_values(by='id')
+# Remap id column and set to index
+vendors['id'] = vendors['id'].map(v_id_map)
 vendors.set_index('id', inplace=True)
+vendors.sort_index(inplace=True)
 
 # Fill primary_tags na with -1 & strip unnecessary characters
 vendors['primary_tags'] = vendors['primary_tags'].fillna("{\"primary_tags\":\"-1\"}").apply(lambda x: int(str(x).split("\"")[3]))
@@ -32,14 +48,14 @@ vendors['primary_tags'] = vendors['primary_tags'].fillna("{\"primary_tags\":\"-1
 # Fill vendor_tag na with -1 & convert to list-valued
 vendors['vendor_tag'] = vendors['vendor_tag'].fillna(str(-1)).apply(lambda x: x.split(",")).apply(lambda x: [int(i) for i in x])
 
-# Fix incorrect vendor_category_id
+# Fix an incorrect vendor_category_id
 vendors.loc[28, 'vendor_category_id'] = 3.0
 
 # Get unique vendor tags
 vendor_tags = [int(tag) for tag in vendors['vendor_tag'].explode().unique()]
 vendor_tags.sort()
 
-# Map values to range(len(vendor_tags))
+# Map vendor tags to range(len(vendor_tag)) monotonically
 vendor_map = dict()
 for i, tag in enumerate(vendor_tags):
     vendor_map[tag] = i
@@ -78,23 +94,29 @@ keep_columns = keep_continuous + keep_categorical
 vendors = vendors[keep_columns]
 
 # Encode categorical columns
-vendors, _ = integer_encoding(df=vendors, cols=['vendor_category_id', 'delivery_charge', 'status', 'rank', 'primary_tags'], drop_old=True, monotone_mapping=True)
+vendors, _, _ = integer_encoding(df=vendors, cols=['vendor_category_id', 'delivery_charge', 'status', 'rank', 'primary_tags'], drop_old=True, monotone_mapping=True)
 vendors = multiclass_list_encoding(df=vendors, cols=['primary_tags', 'vendor_tag'], drop_old=True)
 
+# Send to Pytorch tensor
+v_matrix = torch.tensor(vendors)
 
 
 #####################################
 ##         Process Customers       ##
 #####################################
 
+# Add num_orders as new column in customer table
+orders_per_customer = train_orders.groupby('customer_id')['akeed_order_id'].count().rename('num_orders')
+train_customers = train_customers.merge(orders_per_customer, how='left', left_on='akeed_customer_id', right_index=True)
 
+# Remove customers with no orders
+train_customers = train_customers[train_customers['num_orders'] > 0]
 
+# For each customer, get the sequence of their orders over all locations
+train_sequences = get_sequences(df=train_orders, target='vendor_id', group_by=['customer_id'])
 
-
-
-
-
-
+# Represent customers as averages of the vendors they purchased from
+train_customer_encoded = pool_encodings_from_sequences(sequences=train_sequences, pool_from=vendors)
 
 
 
