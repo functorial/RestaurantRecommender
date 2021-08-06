@@ -11,7 +11,7 @@ def get_sequences(df:pd.DataFrame, target:str, group_by:list, sort_by:str=None, 
     sequences = sequences[sequences.apply(lambda x: len(x)) >= min_seq_len]    # Filter out length 0 sequences
     return sequences
 
-def integer_encoding(df:pd.DataFrame, cols:list, drop_old=False, monotone_mapping:bool=False, ascending=True):
+def integer_encoding(df:pd.DataFrame, cols:list, min_int=0, drop_old=False, monotone_mapping:bool=False):
     """Returns updated DataFrame and inverse mapping dictionary."""
     clone = df.copy()
     id_maps = dict()
@@ -28,15 +28,15 @@ def integer_encoding(df:pd.DataFrame, cols:list, drop_old=False, monotone_mappin
             id_map = dict()
             inv_map = dict()
             for i in range(num_unique):
-                id_map[unique_values[i]] = i
-                inv_map[i] = unique_values[i]
+                id_map[unique_values[i]] = i + min_int
+                inv_map[i + min_int] = unique_values[i]
             id_maps[col] = id_map
             inv_maps = inv_map
             # Encoding
             if drop_old:
                 clone[col] = clone[col].apply(lambda x: [id_map[i] for i in x])
             else:
-                col_reidc = col + "_reidx"
+                col_reidx = col + "_reidx"
                 clone[col_reidx] = clone[col].apply(lambda x: [id_map[i] for i in x])
         else:
             # Get unique values and sort
@@ -48,8 +48,8 @@ def integer_encoding(df:pd.DataFrame, cols:list, drop_old=False, monotone_mappin
             id_map = dict()
             inv_map = dict()
             for i in range(num_unique):
-                id_map[unique_values[i]] = i
-                inv_map[i] = unique_values[i]
+                id_map[unique_values[i]] = i + min_int
+                inv_map[i + min_int] = unique_values[i]
             id_maps[col] = id_map
             inv_maps[col] = inv_map
             # Encoding
