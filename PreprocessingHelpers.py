@@ -142,3 +142,24 @@ def get_inputs_from_sequences(sequences:pd.Series, customers:pd.DataFrame, vendo
         return None
     seq_df.apply(f, axis=1)
     return out[1:]
+
+
+def pandas_sequences_to_tensor(sequences:pd.Series, window:int=5):
+
+    def left_pad_list(L):
+        nonlocal window
+        num_zeros = window - len(L)
+        return ([0] * num_zeros) + L
+
+    def get_windows(L):
+        nonlocal window
+        out = list()
+        for i in range(1, len(L)+1):
+            if i <= window:
+                out.append(left_pad_list(L[:i]))
+            else:
+                out.append(L[i-window:i])
+        return out
+
+    padded_sequences = torch.stack(sequences.apply(get_windows).explode().apply(torch.tensor).tolist(), axis=0)
+    return padded_sequences
