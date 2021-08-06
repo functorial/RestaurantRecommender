@@ -1,4 +1,5 @@
 import pandas as pd
+import torch
 
 def get_sequences(df:pd.DataFrame, target:str, group_by:list, sort_by:str=None, sort:bool=False, min_seq_len=1) -> pd.Series:
     """Groups a DataFrame by features and aggregates target feature into a Series of lists."""
@@ -111,6 +112,7 @@ def multiclass_list_encoding(df:pd.DataFrame, cols:list, drop_old=False):
     clone.index = clone.index.map(inv_map)
     return clone
 
+
 def pool_encodings_from_sequences(sequences:pd.Series, pool_from: pd.DataFrame):
     """Inputs a Pandas Series `sequences` valued in lists of indices from `pool_from`.
     Outputs a Pandas DataFrame with columns from `pool_from` and indices from `sequences`
@@ -125,3 +127,18 @@ def pool_encodings_from_sequences(sequences:pd.Series, pool_from: pd.DataFrame):
     seq_df.apply(f, axis=1)
     return encoded
 
+
+def get_inputs_from_sequences(sequences:pd.Series, customers:pd.DataFrame, vendors:pd.DataFrame):
+    out = torch.zeros((1, 2 * len(customers.columns)))  # For shape
+    seq_df = sequences.to_frame()
+    col = seq_df.columns[0]
+    def f(row):
+        seq = row[col]
+        c_tensor = torch.tensor(customers.loc[row.name])
+        for vendor in seq:
+            v_tensor = torch.tensor(vendors.iloc[vendor])
+            pair = torch.cat((c_tensor, v_tensor)).view(1, -1)
+            out = torch.cat((out, pair), axis=0)
+        return None
+    seq_df.apply(f, axis=1)
+    return out[1:]
