@@ -163,3 +163,15 @@ def pandas_sequences_to_tensor(sequences:pd.Series, window:int=5):
 
     padded_sequences = torch.stack(sequences.apply(get_windows).explode().apply(torch.tensor).tolist(), axis=0)
     return padded_sequences
+
+
+class CustomDataset(torch.utils.data.Dataset):
+    def __init__(self, sequences):
+        self.customer = sequences[:, :-1]
+        self.vendor = sequences[:, -1:].view(-1)
+
+    def __len__(self):
+        return len(self.vendor)
+
+    def __getitem__(self, idx):
+        return self.customer[idx,:], self.vendor[idx]
