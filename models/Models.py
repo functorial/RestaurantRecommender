@@ -37,16 +37,10 @@ class Model3(nn.Module):
         self.v_emb = nn.Linear(d_cont+d_misc+d_emb_ptag+d_emb_vtag, d_emb)
 
         # dense layers
-        self.fc1_bn = nn.BatchNorm1d(2 * d_emb)
         self.fc1 = nn.Linear(2 * d_emb, d_fc)
-        self.fc2_bn = nn.BatchNorm1d(d_fc)
         self.fc2 = nn.Linear(d_fc, d_fc // 2)
-        self.fc3_bn = nn.BatchNorm1d(d_fc // 2)
         self.fc3 = nn.Linear(d_fc // 2, d_fc // 4)
         self.fc4 = nn.Linear(d_fc // 4, 1)
-
-        self.dropout = nn.Dropout(p=0.2)
-
 
     def forward(self, c_seq, v_id):
         # lookup customer and vendor representations
@@ -140,11 +134,8 @@ class Model2(nn.Module):
         self.v_emb = nn.Linear(d_cont+d_misc+d_emb_ptag+d_emb_vtag, d_emb)
 
         # dense layers
-        self.fc1_bn = nn.BatchNorm1d(2 * d_emb)
         self.fc1 = nn.Linear(2 * d_emb, d_fc)
-        self.fc2_bn = nn.BatchNorm1d(d_fc)
         self.fc2 = nn.Linear(d_fc, d_fc // 2)
-        self.fc3_bn = nn.BatchNorm1d(d_fc // 2)
         self.fc3 = nn.Linear(d_fc // 2, d_fc // 4)
         self.fc4 = nn.Linear(d_fc // 4, 1)
 
@@ -195,17 +186,14 @@ class Model2(nn.Module):
         # feed through classifier
         out = torch.cat((customer, vendor), axis=1)
 
-        out = self.fc1_bn(out)
         out = self.dropout(out)
         out = self.fc1(out)
         out = F.elu(out)
 
-        out = self.fc2_bn(out)
         out = self.dropout(out)
         out = self.fc2(out)
         out = F.elu(out)
 
-        out = self.fc3_bn(out)
         out = self.dropout(out)
         out = self.fc3(out)
         out = F.elu(out)
