@@ -9,10 +9,8 @@ class Model7(nn.Module):
         
         # one-hot encode & embed vendor ids (brand loyalty)
         num_vendors = len(vendors)
-        d_emb_id = int(ceil(log2(num_vendors)))
         self.id_lookup = nn.Embedding.from_pretrained(torch.eye(num_vendors))
         self.id_lookup.weight.requires_grad = False
-        self.emb_id = nn.Linear(num_vendors, d_emb_id)
 
         # vendor data lookup 
         self.vendor_lookup = nn.Embedding.from_pretrained(vendors)
@@ -44,10 +42,11 @@ class Model7(nn.Module):
         self.v_emb = nn.Linear(d_cont+d_misc+d_emb_ptag+d_emb_vtag, d_emb)
 
         # dense layers
-        self.fc1 = nn.Linear(2 * (d_emb + d_emb_id), d_fc)
+        self.fc1 = nn.Linear(2 * (d_emb + num_vendors), d_fc)
         self.fc2 = nn.Linear(d_fc, d_fc // 2)
         self.fc3 = nn.Linear(d_fc // 2, d_fc // 4)
-        self.fc4 = nn.Linear(d_fc // 4, 1)
+        self.fc4 = nn.Linear(d_fc // 4, d_fc // 8)
+        self.fc5 = nn.Linear(d_fc // 8, 1)
 
     def forward(self, c_seq, v_id):
 
@@ -55,17 +54,11 @@ class Model7(nn.Module):
         v_id_oh = self.id_lookup(v_id)
         c_ids_oh = torch.sum(self.id_lookup(c_seq), axis=1)
 
-        # embed vendor ids
-        v_id_oh = self.emb_id(v_id_oh)
-        v_id_oh = F.elu(v_id_oh)
-        c_ids_oh = self.emb_id(c_ids_oh)
-        c_ids_oh = F.elu(c_ids_oh)
-
         # lookup customer and vendor representations
         vendor = self.vendor_lookup(v_id)
         customer = torch.sum(self.vendor_lookup(c_seq), axis=1)
-        scaler = torch.diag(torch.reciprocal(torch.count_nonzero(customer, dim=1)))    # scale by reciprocal(num_nonzero_orders)
-        customer = scaler.float() @ customer.float()
+        scaler = torch.diag(torch.reciprocal(torch.count_nonzero(customer, dim=1)))
+        customer = scaler.float() @ customer.float()  # scale by reciprocal(num_nonzero_orders)
         customer = torch.nan_to_num(customer)
         
 
@@ -116,8 +109,10 @@ class Model7(nn.Module):
         out = self.fc3(out)
         out = F.elu(out)
 
-        out = self.fc4(out)     # output is raw
-
+        out = self.fc4(out)
+        out = F.elu(out)
+        
+        out = self.fc5(out)     # output is raw
         return out
 
 
