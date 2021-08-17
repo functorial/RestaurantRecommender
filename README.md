@@ -164,7 +164,7 @@ As described above, all models tested are modifications of the Model1 prototype.
 6. Customer representations are now a mean of the non-null orders in their sequence instead of a sum. This is an attempt to make stronger predictions about newer customers.
 7. Remove the embedding layer for the vendor ids. The whole point of brand loyalty is that each brand (in this application, brand=vendor) is dissimilar from the others. Therefore, it is useful to store the vendor ids as orthogonal vectors. 
 8. Add an extra dense layer to the end of the model.
-9. Remove the customer and vendor embeddings
+9. Remove the customer and vendor embedding layers.
 
 # Testing
 
@@ -186,18 +186,66 @@ We will define 'popularity' of a vendor to be equal to its number of orders in t
 
 ## Results
 
-During training, the models were saved every $10$ epochs. We can test how the models perform over time. The testing error does not decrease after a certain point, which is likely due to the regularization the weight decay provides. This ensures that our models are not overfit. The models typically converged by epoch 200, but sometimes before. A summary of model performance is obtained by testing each model at the points where they are close enouhg to convergence.
+During training, the models were saved every $10$ epochs. We can test how the models perform over time. The testing error does not decrease after a certain point, which is likely due to the regularization the weight decay provides. This ensures that our models are not overfit. The models typically converged by epoch 200, but sometimes before. A summary of model performance is obtained by testing each model at the points where they are close enough to convergence.
 
 <p align="center">
-    <img src="Imgs/results.png" height="300"/>    
+    <img src="Imgs/results.png" height="500"/>    
 </p>
 <p align="center">
     The test scores for each model, around epoch 200, against the baseline models. 
 </p>
 
+Our biggest jumps in performance are at Model5 and Model7, which is where we incorporated and improved the brand loyalty part of our model.
+
+As we can see, Model9 seems to be the most accurate by a thin margin. However, we lose the low-dimensional customer and vendor embeddings that we had from Model8. We may choose to use these embeddings for further analysis, such as clustering. This is why I prefer Model8. 
+
 ## Examining Outputs
 
-We can see that Baseline2 already performs relatively well. 
+We can see that Baseline2 already performs relatively well - simply recommending vendors from past orders and popular vendors goes a long way. How is our model making predictions? Let's examine some outputs from Model8.
+
+<p align="center">
+    <img src="Imgs/preds.png" height="600"/>    
+</p>
+<p align="center">
+    Examining model predictions against baseline predictions.
+</p>
+
+There's a couple things to note here. I'll list some observations
+- Our model gives similar predictions to the baseline, but they aren't exactly the same. We can see that the model can correctly predict the target order, even if the customer has not interacted with the target vendor yet (see Tests 7, 18, 21). This means that the model is likely learning some similarity between vendors, as we'd hoped for. We can summarize this point with a matrix.
+
+<p align="center">
+    <img src="Imgs/m_vs_b.png" height="120"/>    
+</p>
+
+- As expected the model performance is very poor for new customers. A whopping $22\%$ of our test inputs are the zero vector, as we have no data on brand new customers. A quick comparison the model output on the zero vector against the most popular vendors shows that the model is working as intended for new customers.
+
+<p align="center">
+    <img src="Imgs/popular.png" height="50"/>    
+</p>
+
+- For every non-zero input among these tests, the top prediction given by our model is a vendor which the customer has recently ordered from. 
+- An even stronger statement is true: every customer with at least two/three unique orders, the top two/three predictions the model gives are among the vendors the customer has recently ordered from. This means that the model is strongly preferring to output the unique inputs. One can check that most unique inputs are also outputs. 
+- With the previous point in mind, the model does not necessarily output every unique input (see Test 3)
+
+It might be interesting to breakdown the comparison of the model vs. the baseline by number of non-zero orders in the input sequence. 
+
+<p align="center">
+    <img src="Imgs/breakdown.png" height="300"/>    
+</p>
+
+Let's record a list of observations.
+- The model and the baseline have nearly the same performance on the brand new customers.
+- The model has the most gain over the baseline when the number of orders is $1$. 
+- The model beats the baseline in every category.
+- The more customer data we are given, the better the performance.
 
 
+# Ideas for Improvement
 
+Here I will list some tweaks that may improve the results, based on the analysis. Might include rambling thoughts as well.
+
+1. Since the model performance increased for longer sequences, we might have better results if we increase the size of our max sequence window length to be greater than $5$. I was worried that a customer's tastes may drift quickly, although that doesn't seem to be the case. At least it doesn't drift that quickly. 
+2. There is a bug in the negative sampline function. Currently, it may choose the target as a negative sample, and only avoids choosing those vendor ids in the customer sequence. This is not the end of the world, and it will likely not increase performance that much, but it is worth recording here. I don't want to retrain all models over this possibly small bug.
+3. We may change the loss function slightly. There is something called "adaptive ranking loss" which passes forward many negative samples and picks the final negative sample to be the one which is ranked closest to the positive sample. I've also seen someone add a cosine similarity type of loss fucntion to the ranking loss.
+4. It may be that our method of evaluation isn't ideal. I wasn't exactly sure what to do here, but maybe this should be thought about a little more. Perhaps we could offer more recommendations than the length of the input sequences.
+5. Not really sure what to do about brand new customers. We can try incorporating the age, gender, and account creation dates into the model, but I have a feeling these will not be very useful. Other than this, we have no data on new customers. 
