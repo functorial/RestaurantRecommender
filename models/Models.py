@@ -53,8 +53,10 @@ class Model9(nn.Module):
         # lookup customer and vendor representations
         vendor = self.vendor_lookup(v_id)
         customer = torch.sum(self.vendor_lookup(c_seq), axis=1)
+
+        # scale customer by reciprocal(num_nonzero_orders)
         scaler = torch.diag(torch.reciprocal(torch.count_nonzero(customer, dim=1)))
-        customer = scaler.float() @ customer.float()  # scale by reciprocal(num_nonzero_orders)
+        customer = scaler.float() @ customer.float()  
         customer = torch.nan_to_num(customer)
         
 

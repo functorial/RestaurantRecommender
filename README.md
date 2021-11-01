@@ -108,10 +108,10 @@ For the time being, our models will not consider the sequence structure and simp
 
 ## Model Prototype Structure
 
-We train and test many differed models, but they are all similar to the prototype Model1. The structure of Model1 is outlined in a crude diagram below.
+We train and test many differed models, but they are all follow the same idea. Below is a diagram explaining the model idea.
 
 <p align="center">
-    <img src="Imgs/Recommender1.png" height="700"/>    
+    <img src="Imgs/Model.png" height="700"/>    
 </p>
 <p align="center">
     The prototype structure of our recommender system.
